@@ -65,7 +65,20 @@ int main() {
 
         if(op_no == 5) {
             strcpy(message.msg_text, "exit");
-        } else if(op_no == 1 || op_no == 2 || op_no == 3 || op_no == 4) {
+        } else if(op_no == 1 || op_no == 2) {
+            int nodes;
+            int adj[31][31];
+            printf("\nEnter number of nodes of graph: ");
+            scanf("%d", &nodes);
+
+            printf("Enter adjacency matrix, each row on a separate line and elements of a single row separated by whitespace characters:\n");
+            for(int i=1; i<=nodes; i++) {
+                for(int j=1; j<=nodes; j++) {
+                    scanf("%d", &adj[i][j]);
+                }
+            }
+            
+        } else if(op_no == 3 || op_no == 4) {
             snprintf(message.msg_text, MAX_MSG_SIZE, "%d %d %s", seq_no, op_no, filename);
         } else {
             printf("Wrong option chosen\n");
