@@ -19,11 +19,6 @@ struct msg_buffer {
     char msg_text[MAX_MSG_SIZE];
 };
 
-struct GraphData {
-    int nodes;
-    int adj[31][31];
-};
-
 void* createSharedMemory(int nodes, int adj[][31]) {
     int shmid;
     key_t shmkey = ftok("/tmp", SHM_KEY);

@@ -9,6 +9,7 @@
 #include <pthread.h>
 
 #define PRIMARY_SERVER_MSG_TYPE 3
+#define RESPONSE_TYPE 2
 
 #define MAX_MSG_SIZE 256
 #define MSG_KEY 1234
@@ -18,6 +19,24 @@ struct msg_buffer {
     long msg_type;
     char msg_text[MAX_MSG_SIZE];
 };
+
+void sendMessageToClient(const char* response) {
+    key_t key = ftok("/tmp", MSG_KEY);
+    int msg_id = msgget(key, 0666);
+    if (msg_id == -1) {
+        perror("msgget");
+        exit(EXIT_FAILURE);
+    }
+
+    struct msg_buffer message;
+    message.msg_type = RESPONSE_TYPE;
+
+    snprintf(message.msg_text, MAX_MSG_SIZE, "%s", response);
+    if (msgsnd(msg_id, &message, sizeof(message.msg_text), 0) == -1) {
+        perror("msgsnd");
+        exit(EXIT_FAILURE);
+    }
+}
 
 void *handleWriteRequest(void *arg) {
     struct msg_buffer *request = (struct msg_buffer *)arg;
@@ -72,6 +91,7 @@ void *handleWriteRequest(void *arg) {
             fprintf(file,"\n");
         }
         fclose(file);
+        sendMessageToClient("File successfully added\n");
 
     } else if(op_no == 2) {
         printf("Thread: Modifying an existing graph file: %s\n", filename);
@@ -93,6 +113,7 @@ void *handleWriteRequest(void *arg) {
             fprintf(file,"\n");
         }
         fclose(file);
+        sendMessageToClient("File successfully modified\n");
     } else {
         printf("Thread: Unknown Operation: %d\n", op_no);
     }
