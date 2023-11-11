@@ -5,21 +5,61 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/shm.h>
 
 #define REQUEST_TYPE 1
 #define RESPONSE_TYPE 2
 
 #define MAX_MSG_SIZE 256
 #define MSG_KEY 1234
+#define SHM_KEY 5678
 
 struct msg_buffer {
     long msg_type;
     char msg_text[MAX_MSG_SIZE];
 };
 
-void clearBuffer() {
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF);
+struct GraphData {
+    int nodes;
+    int adj[31][31];
+};
+
+void createSharedMemory(int nodes, int adj[][31]) {
+    int shmid;
+    key_t shmkey = ftok("/tmp", SHM_KEY);
+
+    // Create share memory segment
+    
+    shmid = shmget(shmkey, sizeof(struct GraphData), IPC_CREAT | 0666);
+    if(shmid == -1) {
+        perror("shmget");
+        exit(EXIT_FAILURE);
+    }
+
+    // Attach shared memory segment
+
+    struct GraphData *graphData = (struct GraphData *)shmat(shmid, NULL, 0);
+    if(graphData == (void *)-1) {
+        perror("shmat");
+        exit(EXIT_FAILURE);
+    }
+
+    // Copy data to shared memory
+
+    graphData->nodes = nodes;
+    for(int i=1; i<=nodes; i++) {
+        for(int j=1; j<=nodes; j++) {
+            graphData->adj[i][j] = adj[i][j];
+        }
+    }
+
+    // Detach shared memory segment
+    if(shmdt(graphData) == -1) {
+        perror("shmdt");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Client: Shared memory segment created with key %d\n", shmkey);
 }
 
 int main() {
@@ -74,6 +114,7 @@ int main() {
                     scanf("%d", &adj[i][j]);
                 }
             }
+            createSharedMemory(nodes,adj);
             snprintf(message.msg_text, MAX_MSG_SIZE, "%d %d %s", seq_no, op_no, filename);
         } else if(op_no == 3 || op_no == 4) {
             int vertex;

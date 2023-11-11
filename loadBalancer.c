@@ -42,22 +42,6 @@ void sendToSecondaryServer(int msg_id, struct msg_buffer message, int secServerI
     printf("Load Balancer: Message forwarded to Secondary Server %d\n", secServerName);
 }
 
-// void sendToSecondaryServer1(int msg_id, struct msg_buffer message)  {
-//     message.msg_type = SECONDARY_SERVER_1_MSG_TYPE;
-//     if(msgsnd(msg_id, &message, sizeof(message.msg_text), 0) == -1)  {
-//         perror("msgsnd");
-//         exit(EXIT_FAILURE);
-//     }
-// }
-
-// void sendToSecondaryServer2(int msg_id, struct msg_buffer message)  {
-//     message.msg_type = SECONDARY_SERVER_2_MSG_TYPE;
-//     if(msgsnd(msg_id, &message, sizeof(message.msg_text), 0) == -1)  {
-//         perror("msgsnd");
-//         exit(EXIT_FAILURE);
-//     }
-// }
-
 int main() {
     key_t key;
     int msg_id;
