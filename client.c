@@ -48,9 +48,6 @@ int main() {
         printf("4. Perform BFS on an existing graph in the database\n");
         printf("5. Destroy mqueue and exit.\n");
 
-        scanf("%d", &option);
-        clearBuffer();
-
         int seq_no, op_no;
         char filename[10];
 
@@ -77,8 +74,11 @@ int main() {
                     scanf("%d", &adj[i][j]);
                 }
             }
-            
+            snprintf(message.msg_text, MAX_MSG_SIZE, "%d %d %s", seq_no, op_no, filename);
         } else if(op_no == 3 || op_no == 4) {
+            int vertex;
+            printf("\nEnter starting vertex: ");
+            scanf("%d", &vertex);
             snprintf(message.msg_text, MAX_MSG_SIZE, "%d %d %s", seq_no, op_no, filename);
         } else {
             printf("Wrong option chosen\n");
