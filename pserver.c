@@ -58,19 +58,46 @@ void *handleWriteRequest(void *arg) {
 
     if(op_no == 1) {
         printf("Thread: Creating a new graph file: %s\n", filename);
-        printf("Printing Graph Data\n");
-        printf("Nodes : %d\n", nodes);
-        printf("Adjacency Matrix: \n");
-        for(int i=1; i<=nodes; i++)  {
-            for(int j=1; j<=nodes; j++) {
-                printf("%d ", adj[i][j]);
-            }
-            printf("\n");
+        
+        char filepath[50];
+        snprintf(filepath, sizeof(filepath), "graphs/%s", filename);
+
+        FILE *file = fopen(filepath, "w");
+        if(file == NULL) {
+            perror("Error creating file");
+            exit(EXIT_FAILURE);
         }
-        // Logic ahead
+
+        fprintf(file, "%d\n", nodes);
+
+        for(int i=1; i<=nodes; i++) {
+            for(int j=1; j<=nodes; j++) {
+                fprintf(file, "%d ", adj[i][j]);
+            }
+            fprintf(file,"\n");
+        }
+        fclose(file);
+
     } else if(op_no == 2) {
         printf("Thread: Modifying an existing graph file: %s\n", filename);
-        // Logic ahead
+        char filepath[50];
+        snprintf(filepath, sizeof(filepath), "graphs/%s", filename);
+
+        FILE *file = fopen(filepath, "w");
+        if(file == NULL) {
+            perror("Error creating file");
+            exit(EXIT_FAILURE);
+        }
+
+        fprintf(file, "%d\n", nodes);
+
+        for(int i=1; i<=nodes; i++) {
+            for(int j=1; j<=nodes; j++) {
+                fprintf(file, "%d ", adj[i][j]);
+            }
+            fprintf(file,"\n");
+        }
+        fclose(file);
     } else {
         printf("Thread: Unknown Operation: %d\n", op_no);
     }

@@ -38,7 +38,7 @@ void sendToSecondaryServer(int msg_id, struct msg_buffer message, int secServerI
         exit(EXIT_FAILURE);
     }
     int secServerName;
-    secServerId = (secServerId==4) ? 1 : 2;
+    secServerName = (secServerId==4) ? 1 : 2;
     printf("Load Balancer: Message forwarded to Secondary Server %d\n", secServerName);
 }
 

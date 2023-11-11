@@ -70,6 +70,8 @@ void* createSharedMemory(int nodes, int adj[][31]) {
     return NULL;
 }
 
+
+
 int main() {
     key_t key;
     int msg_id;
@@ -128,6 +130,9 @@ int main() {
             int vertex;
             printf("\nEnter starting vertex: ");
             scanf("%d", &vertex);
+
+
+
             snprintf(message.msg_text, MAX_MSG_SIZE, "%d %d %s", seq_no, op_no, filename);
         } else {
             printf("Wrong option chosen\n");
