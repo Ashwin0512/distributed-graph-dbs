@@ -33,37 +33,27 @@ void *handleWriteRequest(void *arg) {
 
     key_t shmkey = ftok("/tmp", SHM_KEY);
 
-    int shmid = shmget(shmkey,0,0);
+    int shmid = shmget(shmkey, sizeof(struct GraphData), 0666);
     if(shmid == -1) {
         perror("shmget");
         exit(EXIT_FAILURE);
     }
 
     // Attach shared memory segment
-    char *shared_memory = (char *)shmat(shmid, NULL, 0);
-    if(shared_memory == (void *)-1) {
+    struct GraphData *graphData = (struct GraphData *)shmat(shmid, NULL, 0);
+    if(graphData == (void *)-1) {
         perror("shmat");
         exit(EXIT_FAILURE);
-    }
-
-    char *ptr;
-    int nodes = strtol(shared_memory, &ptr, 10);
-
-    int adj[31][31];
-    for (int i = 1; i <= nodes; ++i) {
-        for (int j = 1; j <= nodes; ++j) {
-            adj[i][j] = strtol(ptr, &ptr, 10);
-        }
     }
 
     if(op_no == 1) {
         printf("Thread: Creating a new graph file: %s\n", filename);
         printf("Printing Graph Data\n");
-        printf("Nodes : %d\n", nodes);
+        printf("Nodes : %d\n", graphData->nodes);
         printf("Adjacency Matrix: \n");
-        for(int i=1; i<=nodes; i++)  {
-            for(int j=1; j<=nodes; j++) {
-                printf("%d ", adj[i][j]);
+        for(int i=1; i<=graphData->nodes; i++)  {
+            for(int j=1; j<=graphData->nodes; j++) {
+                printf("%d ", graphData->adj[i][j]);
             }
             printf("\n");
         }
@@ -76,7 +66,7 @@ void *handleWriteRequest(void *arg) {
     }
 
     // Detach shared memory segment
-    if(shmdt(shared_memory) == -1) {
+    if(shmdt(graphData) == -1) {
         perror("shmdt");
         exit(EXIT_FAILURE);
     }

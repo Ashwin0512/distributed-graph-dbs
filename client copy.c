@@ -24,20 +24,13 @@ struct GraphData {
     int adj[31][31];
 };
 
-void* createSharedMemory(int nodes, int adj[][31]) {
+void createSharedMemory(int nodes, int adj[][31]) {
     int shmid;
     key_t shmkey = ftok("/tmp", SHM_KEY);
 
-    size_t str_size = snprintf(NULL, 0, "%d", nodes);
-    for (int i = 1; i <= nodes; ++i) {
-        for (int j = 1; j <= nodes; ++j) {
-            str_size += snprintf(NULL, 0, " %d", adj[i][j]);
-        }
-    }
-
     // Create share memory segment
     
-    shmid = shmget(shmkey, str_size + 1, IPC_CREAT | 0666);    
+    shmid = shmget(shmkey, sizeof(struct GraphData), IPC_CREAT | 0666);
     if(shmid == -1) {
         perror("shmget");
         exit(EXIT_FAILURE);
@@ -45,29 +38,28 @@ void* createSharedMemory(int nodes, int adj[][31]) {
 
     // Attach shared memory segment
 
-    char* shared_memory = (char*)shmat(shmid, NULL, 0);
-    if (shared_memory == (void*)-1) {
+    struct GraphData *graphData = (struct GraphData *)shmat(shmid, NULL, 0);
+    if(graphData == (void *)-1) {
         perror("shmat");
         exit(EXIT_FAILURE);
     }
 
     // Copy data to shared memory
 
-    sprintf(shared_memory, "%d", nodes);
-    for (int i = 1; i <= nodes; ++i) {
-        for (int j = 1; j <= nodes; ++j) {
-            sprintf(shared_memory + strlen(shared_memory), " %d", adj[i][j]);
+    graphData->nodes = nodes;
+    for(int i=1; i<=nodes; i++) {
+        for(int j=1; j<=nodes; j++) {
+            graphData->adj[i][j] = adj[i][j];
         }
     }
 
     // Detach shared memory segment
-    if(shmdt(shared_memory) == -1) {
+    if(shmdt(graphData) == -1) {
         perror("shmdt");
         exit(EXIT_FAILURE);
     }
 
     printf("Client: Shared memory segment created with key %d\n", shmkey);
-    return NULL;
 }
 
 int main() {
