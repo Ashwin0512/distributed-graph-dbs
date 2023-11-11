@@ -70,7 +70,34 @@ void* createSharedMemory(int nodes, int adj[][31]) {
     return NULL;
 }
 
+void* createSharedMemory2(int startNode) {
+    int shmid;
+    key_t shmkey = ftok("/tmp", SHM_KEY);
 
+    size_t str_size = snprintf(NULL, 0, "%d", startNode);
+
+    shmid = shmget(shmkey, str_size + 1, IPC_CREAT | 0666);    
+    if(shmid == -1) {
+        perror("shmget");
+        exit(EXIT_FAILURE);
+    }
+
+    char* shared_memory = (char*)shmat(shmid, NULL, 0);
+    if (shared_memory == (void*)-1) {
+        perror("shmat");
+        exit(EXIT_FAILURE);
+    }
+
+    sprintf(shared_memory, "%d", startNode);
+
+    if(shmdt(shared_memory) == -1) {
+        perror("shmdt");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Client: Shared memory segment created with key %d\n", shmkey);
+    return NULL;
+}
 
 int main() {
     key_t key;
@@ -130,9 +157,7 @@ int main() {
             int vertex;
             printf("\nEnter starting vertex: ");
             scanf("%d", &vertex);
-
-
-
+            createSharedMemory2(vertex);
             snprintf(message.msg_text, MAX_MSG_SIZE, "%d %d %s", seq_no, op_no, filename);
         } else {
             printf("Wrong option chosen\n");

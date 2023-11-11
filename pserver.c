@@ -19,11 +19,6 @@ struct msg_buffer {
     char msg_text[MAX_MSG_SIZE];
 };
 
-struct GraphData {
-    int nodes;
-    int adj[31][31];
-};
-
 void *handleWriteRequest(void *arg) {
     struct msg_buffer *request = (struct msg_buffer *)arg;
 
