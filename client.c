@@ -19,7 +19,7 @@ struct msg_buffer {
     char msg_text[MAX_MSG_SIZE];
 };
 
-void* createSharedMemory(int nodes, int adj[][31]) {
+int* createSharedMemory(int nodes, int adj[][31]) {
     int shmid;
     key_t shmkey = ftok("/tmp", SHM_KEY);
 
@@ -40,32 +40,27 @@ void* createSharedMemory(int nodes, int adj[][31]) {
 
     // Attach shared memory segment
 
-    char* shared_memory = (char*)shmat(shmid, NULL, 0);
-    if (shared_memory == (void*)-1) {
+    int* shared_memory = (int*)shmat(shmid, NULL, 0);
+    if (shared_memory == (int*)-1) {
         perror("shmat");
         exit(EXIT_FAILURE);
     }
 
     // Copy data to shared memory
-
-    sprintf(shared_memory, "%d", nodes);
+    shared_memory[0] = nodes;
+    int index = 1;
     for (int i = 1; i <= nodes; ++i) {
         for (int j = 1; j <= nodes; ++j) {
-            sprintf(shared_memory + strlen(shared_memory), " %d", adj[i][j]);
+            shared_memory[index++] = adj[i][j];
         }
     }
 
-    // Detach shared memory segment
-    if(shmdt(shared_memory) == -1) {
-        perror("shmdt");
-        exit(EXIT_FAILURE);
-    }
-
     printf("Client: Shared memory segment created with key %d\n", shmkey);
-    return NULL;
+
+    return shared_memory;
 }
 
-void* createSharedMemory2(int startNode) {
+int createSharedMemory2(int startNode) {
     int shmid;
     key_t shmkey = ftok("/tmp", SHM_KEY);
 
@@ -77,21 +72,29 @@ void* createSharedMemory2(int startNode) {
         exit(EXIT_FAILURE);
     }
 
-    char* shared_memory = (char*)shmat(shmid, NULL, 0);
-    if (shared_memory == (void*)-1) {
+    int* shared_memory = (int*)shmat(shmid, NULL, 0);
+    if (shared_memory == (int*)-1) {
         perror("shmat");
         exit(EXIT_FAILURE);
     }
 
-    sprintf(shared_memory, "%d", startNode);
+    shared_memory[0] = startNode;
 
-    if(shmdt(shared_memory) == -1) {
+    printf("Client: Shared memory segment created with key %d\n", shmkey);
+
+    return shared_memory;
+}
+
+void deleteSharedMemory(int* shared_memory) {
+    printf("Client: Attempting to delete shared memory segment with shmid: %d\n", shared_memory[0]);
+
+    // Detach shared memory segment
+    if (shmdt(shared_memory) == -1) {
         perror("shmdt");
         exit(EXIT_FAILURE);
     }
 
-    printf("Client: Shared memory segment created with key %d\n", shmkey);
-    return NULL;
+    printf("Client: Shared memory segment deleted\n");
 }
 
 int main() {
@@ -132,6 +135,8 @@ int main() {
         printf("\nEnter Graph File Name: ");
         scanf("%s", filename);
 
+        int* shared_memory;
+
         if(op_no == 5) {
             strcpy(message.msg_text, "exit");
         } else if(op_no == 1 || op_no == 2) {
@@ -146,13 +151,13 @@ int main() {
                     scanf("%d", &adj[i][j]);
                 }
             }
-            createSharedMemory(nodes,adj);
+            shared_memory = createSharedMemory(nodes, adj);
             snprintf(message.msg_text, MAX_MSG_SIZE, "%d %d %s", seq_no, op_no, filename);
         } else if(op_no == 3 || op_no == 4) {
             int vertex;
             printf("\nEnter starting vertex: ");
             scanf("%d", &vertex);
-            createSharedMemory2(vertex);
+            shared_memory = createSharedMemory2(vertex);
             snprintf(message.msg_text, MAX_MSG_SIZE, "%d %d %s", seq_no, op_no, filename);
         } else {
             printf("Wrong option chosen\n");
@@ -169,6 +174,16 @@ int main() {
         }
 
         printf("Client: Message sent to Load Balancer\n");
+
+        if(msgrcv(msg_id, &message, sizeof(message.msg_text), RESPONSE_TYPE, 0) == -1) {
+            perror("msgrcv");
+            exit(EXIT_FAILURE);
+        }
+
+        printf("Client: Received response from Primary Server: %s\n", message.msg_text);
+
+        printf("Client: Received shmid response: %d\n", shared_memory[0]);
+        deleteSharedMemory(shared_memory);
     }
     return 0;
 }
