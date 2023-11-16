@@ -7,6 +7,8 @@
 #include <sys/msg.h>
 #include <sys/shm.h>
 #include <pthread.h>
+#include<fcntl.h>
+#include <semaphore.h>
 
 #define SECONDARY_SERVER_2_MSG_TYPE 5
 
@@ -18,6 +20,8 @@ struct msg_buffer {
     long msg_type;
     char msg_text[MAX_MSG_SIZE];
 };
+
+sem_t *fileSemaphore;
 
 void *handleTraversal(void *arg) {
     struct msg_buffer *request = (struct msg_buffer *)arg;
@@ -43,6 +47,8 @@ void *handleTraversal(void *arg) {
     char *ptr;
     int startNode = strtol(shared_memory, &ptr, 10);
 
+    sem_wait(fileSemaphore);
+
     if(op_no == 3) {
         printf("Perform DFS, start node: %d\n",startNode);
     } else if(op_no == 4) {
@@ -50,6 +56,8 @@ void *handleTraversal(void *arg) {
     } else {
         printf("Thread: Unknown Operation: %d\n", op_no);
     }
+
+    sem_post(fileSemaphore);
 
     if(shmdt(shared_memory) == -1) {
         perror("shmdt");
@@ -64,6 +72,12 @@ int main() {
     key_t key;
     int msg_id;
     struct msg_buffer message;
+
+    fileSemaphore = sem_open("/fileSemaphore", O_EXCL, 0644, 1);
+    if(fileSemaphore == SEM_FAILED) {
+        perror("sem_open");
+        exit(EXIT_FAILURE);
+    }
 
     key = ftok("/tmp", MSG_KEY);
     if(key == -1) {
@@ -102,6 +116,9 @@ int main() {
 
         pthread_detach(tid);
     }
+
+    sem_close(fileSemaphore);
+    sem_unlink("/fileSemaphore");
 
     printf("Secondary Server 2: Exiting\n");
     return 0;

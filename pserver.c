@@ -7,6 +7,8 @@
 #include <sys/msg.h>
 #include <sys/shm.h>
 #include <pthread.h>
+#include<fcntl.h>
+#include <semaphore.h>
 
 #define PRIMARY_SERVER_MSG_TYPE 3
 #define RESPONSE_TYPE 2
@@ -19,6 +21,8 @@ struct msg_buffer {
     long msg_type;
     char msg_text[MAX_MSG_SIZE];
 };
+
+sem_t *fileSemaphore;
 
 void sendMessageToClient(const char* response) {
     key_t key = ftok("/tmp", MSG_KEY);
@@ -70,6 +74,8 @@ void *handleWriteRequest(void *arg) {
         }
     }
 
+    sem_wait(fileSemaphore);
+
     if(op_no == 1) {
         printf("Thread: Creating a new graph file: %s\n", filename);
         
@@ -103,7 +109,7 @@ void *handleWriteRequest(void *arg) {
             perror("Error creating file");
             exit(EXIT_FAILURE);
         }
-
+        // sleep(15);
         fprintf(file, "%d\n", nodes);
 
         for(int i=1; i<=nodes; i++) {
@@ -113,10 +119,13 @@ void *handleWriteRequest(void *arg) {
             fprintf(file,"\n");
         }
         fclose(file);
+        printf("File closed succesfully\n");
         sendMessageToClient("File successfully modified\n");
     } else {
         printf("Thread: Unknown Operation: %d\n", op_no);
     }
+
+    sem_post(fileSemaphore);
 
     // Detach shared memory segment
     if(shmdt(shared_memory) == -1) {
@@ -132,6 +141,13 @@ int main() {
     key_t key;
     int msg_id;
     struct msg_buffer message;
+
+    sem_unlink("/fileSemaphore");
+    fileSemaphore = sem_open("/fileSemaphore", O_CREAT | O_EXCL, 0644, 1);
+    if(fileSemaphore == SEM_FAILED) {
+        perror("sem_open");
+        exit(EXIT_FAILURE);
+    }
 
     key = ftok("/tmp", MSG_KEY);
     if(key == -1) {
@@ -174,6 +190,9 @@ int main() {
         // Detach the thread to allow it to run independently
         pthread_detach(tid);
     }
+
+    sem_close(fileSemaphore);
+    sem_unlink("/fileSemaphore");
 
     printf("Primary Server: Exiting\n");
     return 0;
