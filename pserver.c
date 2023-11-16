@@ -9,7 +9,6 @@
 #include <pthread.h>
 
 #define PRIMARY_SERVER_MSG_TYPE 3
-#define PRIMARY_SERVER_RESPONSE_TYPE 6
 #define RESPONSE_TYPE 2
 
 #define MAX_MSG_SIZE 256
@@ -48,15 +47,15 @@ void *handleWriteRequest(void *arg) {
 
     key_t shmkey = ftok("/tmp", SHM_KEY);
 
-    int shmid = shmget(shmkey, 0, 0);
-    if (shmid == -1) {
+    int shmid = shmget(shmkey,0,0);
+    if(shmid == -1) {
         perror("shmget");
         exit(EXIT_FAILURE);
     }
 
     // Attach shared memory segment
     char *shared_memory = (char *)shmat(shmid, NULL, 0);
-    if (shared_memory == (void *)-1) {
+    if(shared_memory == (void *)-1) {
         perror("shmat");
         exit(EXIT_FAILURE);
     }
@@ -71,47 +70,47 @@ void *handleWriteRequest(void *arg) {
         }
     }
 
-    if (op_no == 1) {
+    if(op_no == 1) {
         printf("Thread: Creating a new graph file: %s\n", filename);
-
+        
         char filepath[50];
         snprintf(filepath, sizeof(filepath), "graphs/%s", filename);
 
         FILE *file = fopen(filepath, "w");
-        if (file == NULL) {
+        if(file == NULL) {
             perror("Error creating file");
             exit(EXIT_FAILURE);
         }
 
         fprintf(file, "%d\n", nodes);
 
-        for (int i = 1; i <= nodes; i++) {
-            for (int j = 1; j <= nodes; j++) {
+        for(int i=1; i<=nodes; i++) {
+            for(int j=1; j<=nodes; j++) {
                 fprintf(file, "%d ", adj[i][j]);
             }
-            fprintf(file, "\n");
+            fprintf(file,"\n");
         }
         fclose(file);
         sendMessageToClient("File successfully added\n");
 
-    } else if (op_no == 2) {
+    } else if(op_no == 2) {
         printf("Thread: Modifying an existing graph file: %s\n", filename);
         char filepath[50];
         snprintf(filepath, sizeof(filepath), "graphs/%s", filename);
 
         FILE *file = fopen(filepath, "w");
-        if (file == NULL) {
+        if(file == NULL) {
             perror("Error creating file");
             exit(EXIT_FAILURE);
         }
 
         fprintf(file, "%d\n", nodes);
 
-        for (int i = 1; i <= nodes; i++) {
-            for (int j = 1; j <= nodes; j++) {
+        for(int i=1; i<=nodes; i++) {
+            for(int j=1; j<=nodes; j++) {
                 fprintf(file, "%d ", adj[i][j]);
             }
-            fprintf(file, "\n");
+            fprintf(file,"\n");
         }
         fclose(file);
         sendMessageToClient("File successfully modified\n");
@@ -120,7 +119,7 @@ void *handleWriteRequest(void *arg) {
     }
 
     // Detach shared memory segment
-    if (shmdt(shared_memory) == -1) {
+    if(shmdt(shared_memory) == -1) {
         perror("shmdt");
         exit(EXIT_FAILURE);
     }
@@ -135,7 +134,7 @@ int main() {
     struct msg_buffer message;
 
     key = ftok("/tmp", MSG_KEY);
-    if (key == -1) {
+    if(key == -1) {
         perror("ftok");
         exit(EXIT_FAILURE);
     }
@@ -148,8 +147,8 @@ int main() {
 
     printf("Primary Server: Connected to Message Queue with key %d\n", key);
 
-    while (1) {
-        if (msgrcv(msg_id, &message, sizeof(message.msg_text), PRIMARY_SERVER_MSG_TYPE, 0) == -1) {
+    while(1) {
+        if(msgrcv(msg_id, &message, sizeof(message.msg_text), PRIMARY_SERVER_MSG_TYPE, 0) == -1) {
             perror("msgrcv");
             exit(EXIT_FAILURE);
         }
@@ -159,7 +158,7 @@ int main() {
         // Create a new thread to handle the write request
         pthread_t tid;
         struct msg_buffer *request = malloc(sizeof(struct msg_buffer));
-        if (request == NULL) {
+        if(request == NULL) {
             perror("malloc");
             exit(EXIT_FAILURE);
         }
@@ -167,7 +166,7 @@ int main() {
         // Copy the received message to the dynamically allocated structure
         memcpy(request, &message, sizeof(struct msg_buffer));
 
-        if (pthread_create(&tid, NULL, handleWriteRequest, (void *)request)) {
+        if(pthread_create(&tid, NULL, handleWriteRequest, (void *)request)) {
             perror("pthread_create");
             exit(EXIT_FAILURE);
         }
