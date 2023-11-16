@@ -87,7 +87,7 @@ void *handleWriteRequest(void *arg) {
             perror("Error creating file");
             exit(EXIT_FAILURE);
         }
-
+        sleep(35);
         fprintf(file, "%d\n", nodes);
 
         for(int i=1; i<=nodes; i++) {
@@ -97,6 +97,7 @@ void *handleWriteRequest(void *arg) {
             fprintf(file,"\n");
         }
         fclose(file);
+        printf("File modi succesfully\n");
         sendMessageToClient("File successfully added\n");
 
     } else if(op_no == 2) {
@@ -109,7 +110,7 @@ void *handleWriteRequest(void *arg) {
             perror("Error creating file");
             exit(EXIT_FAILURE);
         }
-        // sleep(15);
+  
         fprintf(file, "%d\n", nodes);
 
         for(int i=1; i<=nodes; i++) {

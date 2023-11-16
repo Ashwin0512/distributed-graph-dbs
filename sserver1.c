@@ -51,6 +51,8 @@ void *handleTraversal(void *arg) {
 
     if(op_no == 3) {
         printf("Perform DFS, start node: %d\n",startNode);
+        // sleep(30);
+        printf("Jag gaya mai\n");
     } else if(op_no == 4) {
         printf("Perform BFS, start node: %d\n",startNode);
     } else {
