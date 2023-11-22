@@ -7,24 +7,25 @@
 #include <sys/msg.h>
 #include <sys/shm.h>
 #include <pthread.h>
-#include<fcntl.h>
+#include <fcntl.h>
 #include <semaphore.h>
 
 #define PRIMARY_SERVER_MSG_TYPE 3
 #define RESPONSE_TYPE 2
+#define CLEANUP_MSG_TYPE 6  // Added cleanup message type
 
 #define MAX_MSG_SIZE 256
 #define MSG_KEY 1234
 #define SHM_KEY 5678
+
+sem_t *fileSemaphore;
 
 struct msg_buffer {
     long msg_type;
     char msg_text[MAX_MSG_SIZE];
 };
 
-sem_t *fileSemaphore;
-
-void sendMessageToClient(const char* response) {
+void sendMessageToClient(const char *response) {
     key_t key = ftok("/tmp", MSG_KEY);
     int msg_id = msgget(key, 0666);
     if (msg_id == -1) {
@@ -51,15 +52,15 @@ void *handleWriteRequest(void *arg) {
 
     key_t shmkey = ftok("/tmp", SHM_KEY);
 
-    int shmid = shmget(shmkey,0,0);
-    if(shmid == -1) {
+    int shmid = shmget(shmkey, 0, 0);
+    if (shmid == -1) {
         perror("shmget");
         exit(EXIT_FAILURE);
     }
 
     // Attach shared memory segment
     char *shared_memory = (char *)shmat(shmid, NULL, 0);
-    if(shared_memory == (void *)-1) {
+    if (shared_memory == (void *)-1) {
         perror("shmat");
         exit(EXIT_FAILURE);
     }
@@ -76,48 +77,48 @@ void *handleWriteRequest(void *arg) {
 
     sem_wait(fileSemaphore);
 
-    if(op_no == 1) {
+    if (op_no == 1) {
         printf("Thread: Creating a new graph file: %s\n", filename);
-        
+
         char filepath[50];
         snprintf(filepath, sizeof(filepath), "graphs/%s", filename);
 
         FILE *file = fopen(filepath, "w");
-        if(file == NULL) {
+        if (file == NULL) {
             perror("Error creating file");
             exit(EXIT_FAILURE);
         }
         sleep(35);
         fprintf(file, "%d\n", nodes);
 
-        for(int i=1; i<=nodes; i++) {
-            for(int j=1; j<=nodes; j++) {
+        for (int i = 1; i <= nodes; i++) {
+            for (int j = 1; j <= nodes; j++) {
                 fprintf(file, "%d ", adj[i][j]);
             }
-            fprintf(file,"\n");
+            fprintf(file, "\n");
         }
         fclose(file);
         printf("File modi succesfully\n");
         sendMessageToClient("File successfully added\n");
 
-    } else if(op_no == 2) {
+    } else if (op_no == 2) {
         printf("Thread: Modifying an existing graph file: %s\n", filename);
         char filepath[50];
         snprintf(filepath, sizeof(filepath), "graphs/%s", filename);
 
         FILE *file = fopen(filepath, "w");
-        if(file == NULL) {
+        if (file == NULL) {
             perror("Error creating file");
             exit(EXIT_FAILURE);
         }
-  
+
         fprintf(file, "%d\n", nodes);
 
-        for(int i=1; i<=nodes; i++) {
-            for(int j=1; j<=nodes; j++) {
+        for (int i = 1; i <= nodes; i++) {
+            for (int j = 1; j <= nodes; j++) {
                 fprintf(file, "%d ", adj[i][j]);
             }
-            fprintf(file,"\n");
+            fprintf(file, "\n");
         }
         fclose(file);
         printf("File closed succesfully\n");
@@ -129,13 +130,35 @@ void *handleWriteRequest(void *arg) {
     sem_post(fileSemaphore);
 
     // Detach shared memory segment
-    if(shmdt(shared_memory) == -1) {
+    if (shmdt(shared_memory) == -1) {
         perror("shmdt");
         exit(EXIT_FAILURE);
     }
 
     free(request);
     pthread_exit(NULL);
+}
+
+void cleanupHandler(int msg_id) {
+    // Perform any necessary cleanup actions here
+    printf("Primary Server: Cleanup initiated. Performing cleanup actions...\n");
+
+    // Close and remove the message queue
+    if (msgctl(msg_id, IPC_RMID, NULL) == -1) {
+        perror("msgctl");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Primary Server: Message Queue destroyed\n");
+
+    // Close and unlink the semaphore
+    sem_close(fileSemaphore);
+    sem_unlink("/fileSemaphore");
+
+    printf("Primary Server: Semaphore closed and unlinked\n");
+
+    printf("Primary Server: Exiting\n");
+    exit(EXIT_SUCCESS);
 }
 
 int main() {
@@ -145,13 +168,13 @@ int main() {
 
     sem_unlink("/fileSemaphore");
     fileSemaphore = sem_open("/fileSemaphore", O_CREAT | O_EXCL, 0644, 1);
-    if(fileSemaphore == SEM_FAILED) {
+    if (fileSemaphore == SEM_FAILED) {
         perror("sem_open");
         exit(EXIT_FAILURE);
     }
 
     key = ftok("/tmp", MSG_KEY);
-    if(key == -1) {
+    if (key == -1) {
         perror("ftok");
         exit(EXIT_FAILURE);
     }
@@ -164,18 +187,23 @@ int main() {
 
     printf("Primary Server: Connected to Message Queue with key %d\n", key);
 
-    while(1) {
-        if(msgrcv(msg_id, &message, sizeof(message.msg_text), PRIMARY_SERVER_MSG_TYPE, 0) == -1) {
+    while (1) {
+        if (msgrcv(msg_id, &message, sizeof(message.msg_text), PRIMARY_SERVER_MSG_TYPE, 0) == -1) {
             perror("msgrcv");
             exit(EXIT_FAILURE);
         }
 
         printf("Primary Server: Received Message: %s\n", message.msg_text);
 
+        // Check for cleanup request
+        if (message.msg_type == CLEANUP_MSG_TYPE) {
+            cleanupHandler(msg_id);
+        }
+
         // Create a new thread to handle the write request
         pthread_t tid;
         struct msg_buffer *request = malloc(sizeof(struct msg_buffer));
-        if(request == NULL) {
+        if (request == NULL) {
             perror("malloc");
             exit(EXIT_FAILURE);
         }
@@ -183,7 +211,7 @@ int main() {
         // Copy the received message to the dynamically allocated structure
         memcpy(request, &message, sizeof(struct msg_buffer));
 
-        if(pthread_create(&tid, NULL, handleWriteRequest, (void *)request)) {
+        if (pthread_create(&tid, NULL, handleWriteRequest, (void *)request)) {
             perror("pthread_create");
             exit(EXIT_FAILURE);
         }
@@ -191,10 +219,7 @@ int main() {
         // Detach the thread to allow it to run independently
         pthread_detach(tid);
     }
-
-    sem_close(fileSemaphore);
-    sem_unlink("/fileSemaphore");
-
-    printf("Primary Server: Exiting\n");
-    return 0;
 }
+
+    // This part
+

@@ -9,6 +9,7 @@
 
 #define REQUEST_TYPE 1
 #define RESPONSE_TYPE 2
+#define RESULT_TYPE 8
 
 #define MAX_MSG_SIZE 256
 #define MSG_KEY 1234
@@ -18,6 +19,12 @@ struct msg_buffer {
     long msg_type;
     char msg_text[MAX_MSG_SIZE];
 };
+
+void receive(int msg_queue, struct msg_buffer *res){
+    if(msgrcv(msg_queue, res, sizeof(*res), RESULT_TYPE, 0) == -1){
+            perror("msgrcv\n");
+        }
+}
 
 void* createSharedMemory(int nodes, int adj[][31]) {
     int shmid;
@@ -118,7 +125,7 @@ int main() {
         printf("2. Modify an existing graph of the database\n");
         printf("3. Perform DFS on an existing graph in the database\n");
         printf("4. Perform BFS on an existing graph in the database\n");
-        printf("5. Destroy mqueue and exit.\n");
+   
 
         int seq_no, op_no;
         char filename[10];
@@ -132,9 +139,7 @@ int main() {
         printf("\nEnter Graph File Name: ");
         scanf("%s", filename);
 
-        if(op_no == 5) {
-            strcpy(message.msg_text, "exit");
-        } else if(op_no == 1 || op_no == 2) {
+         if(op_no == 1 || op_no == 2) {
             int nodes;
             int adj[31][31];
             printf("\nEnter number of nodes of graph: ");
@@ -154,6 +159,7 @@ int main() {
             scanf("%d", &vertex);
             createSharedMemory2(vertex);
             snprintf(message.msg_text, MAX_MSG_SIZE, "%d %d %s", seq_no, op_no, filename);
+            
         } else {
             printf("Wrong option chosen\n");
             continue;
@@ -167,8 +173,19 @@ int main() {
             perror("msgsnd");
             exit(EXIT_FAILURE);
         }
-
         printf("Client: Message sent to Load Balancer\n");
+
+        if(op_no == 3 || op_no == 4){
+            struct msg_buffer res;
+            receive(msg_id,&res);
+            printf("Msg Received from the Secondary Server\n");
+
+            printf("Output printed on the secondary server");
+            
+            printf("\n");
+        }
+
+        
     }
     return 0;
 }
